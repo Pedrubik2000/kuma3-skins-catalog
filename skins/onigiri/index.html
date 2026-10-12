@@ -124,7 +124,7 @@ const mock = (() => {
       const [q, a] = c[n++ % c.length];
       return {nid: String(n), ord: 0, css: ".card{font-size:26px;text-align:center}", q, a, times: ["<10m", "1d", "3d", "8d"]};
     },
-    answer() { const d = decks.find(x => x.id === sel); if (d.due) d.due--; else if (d.new) d.new--; },
+    answer() { const d = decks.find(x => x.id === sel); if (d.due) d.due--; else if (d.learn) d.learn--; else if (d.new) d.new--; },
     activity: () => act, today: () => ({cards: 37, seconds: 336}),
     sync() { alert("In the app this asks kuma3 to sync with AnkiWeb."); },
     open() { alert("In the app this opens kuma3."); }, screen(s) { alert(`In the app this opens kuma3's ${s} screen.`); },

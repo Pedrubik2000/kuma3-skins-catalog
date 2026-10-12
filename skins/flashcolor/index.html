@@ -84,7 +84,7 @@ const mock = (() => {
       const [q, a] = c[n++ % c.length];
       return {nid: String(n), ord: 0, css: ".card{font-size:26px;text-align:center}", q, a, times: ["<10m", "1d", "3d", "8d"]};
     },
-    answer() { const d = decks.find(x => x.id === sel); if (d.due) d.due--; else if (d.new) d.new--; },
+    answer() { const d = decks.find(x => x.id === sel); if (d.due) d.due--; else if (d.learn) d.learn--; else if (d.new) d.new--; },
     activity: () => act, today: () => ({cards: 37, seconds: 336}),
     sync() { alert("In the app this asks kuma3 to sync with AnkiWeb."); },
     open() { alert("In the app this opens kuma3."); }, screen(s) { alert(`In the app this opens kuma3's ${s} screen.`); },
@@ -337,7 +337,7 @@ function cardDoc(html, skip, head = "") {
   });
   const css = getComputedStyle(document.body), dark = shown;
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><base href="${esc(st.mediaBase)}"><script>(${cardHelper})()<\/script>
-${head}<style>body{background:${css.getPropertyValue("--bg")};color:${css.getPropertyValue("--ink")};font:700 30px/1.3 system-ui,sans-serif}html{height:100%}body{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;justify-content:safe center}hr{align-self:stretch}</style><style>${card.css || ""}</style><style>html,body{margin:0}body{padding:60px 16px 24px}img,video{max-width:100%;height:auto}</style></head>
+${head}<style>body{background:${css.getPropertyValue("--bg")};color:${css.getPropertyValue("--ink")};font:700 30px/1.3 system-ui,sans-serif}html{height:100%}body{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;justify-content:safe center}hr{width:100%}</style><style>${card.css || ""}</style><style>html,body{margin:0}body{padding:60px 16px 24px}img,video{max-width:100%;height:auto}</style></head>
 <body class="card card${card.ord + 1}${dark ? " nightMode night_mode" : ""}">${html}</body></html>`;
 }
 const sounds = html => [...(html || "").matchAll(/\[sound:([^\]]+)\]/g)].map(m => m[1]);

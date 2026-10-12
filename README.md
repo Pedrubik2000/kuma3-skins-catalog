@@ -30,13 +30,10 @@ files an entry lists, from `skins/<id>/`:
 
 ## Adding a skin
 
-Using a coding agent (Claude Code and others)? Point it at this repo: `AGENTS.md` (also loaded through `CLAUDE.md`)
-has the step-by-step instructions, the rules and the checks it must run.
-
-Write the page as described in "How to make a kuma3 skin", put it in `skins/<id>/`, add its entry to
-`catalog.json`, and try it in a browser: serve this repo (`python -m http.server`) and open `skins/<id>/index.html`.
-Without the app the pages use example decks and cards. `skins/shared.js` is a copy of the app's own file, only for
-that browser test; the app never downloads it.
+- **People:** follow [docs/tutorial.md](docs/tutorial.md), a step-by-step first skin (about 30 minutes), then
+  [docs/reference.md](docs/reference.md) for the page contract and every bridge call.
+- **Coding agents (Claude Code and others):** point it at this repo; [AGENTS.md](AGENTS.md) (also loaded through
+  `CLAUDE.md`) has the steps, the rules and the checks it must run.
 
 Every skin can read and answer your kuma3 cards, so the app downloads from this repo only. Unofficial personal
 project, not affiliated with Anki, AnkiDroid, Onigiri, Fear & Hunger or Balatro.

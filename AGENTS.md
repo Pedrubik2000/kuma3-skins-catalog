@@ -3,6 +3,7 @@
 This repo is the catalog the kuma3 Skins Android app downloads skins from. A skin is a self-contained HTML page in
 `skins/<id>/` plus one entry in `catalog.json`. You never need to build the Android app to add or change a skin.
 
+Human docs: [docs/tutorial.md](docs/tutorial.md) (step by step) and [docs/reference.md](docs/reference.md) (contract, bridge).
 App source (bridge, picker, card isolation): https://github.com/Pedrubik2000/kuma3-skins
 (`src/main/java/.../MainActivity.kt`, `src/main/assets/shared.js`, the built-in `src/main/assets/anki/` skin).
 
@@ -27,7 +28,7 @@ App source (bridge, picker, card isolation): https://github.com/Pedrubik2000/kum
 2. **Copy a base**: `cp -r skins/flashcolor skins/ocean` (smallest, ~360 lines). For a dashboard use
    `skins/onigiri`; for game mechanics read `skins/xp` (XP, combos, quests) or `skins/joker`.
 3. **Rename identity**: in `skins/ocean/index.html` set `<title>`, and replace every `flash-` (or `onigiri-`)
-   with `ocean-`. Then `grep -n "flash" skins/ocean/index.html` must print nothing but comments you meant to keep.
+   with `ocean-`. Then `grep -n "flash-" skins/ocean/index.html` must print nothing.
 4. **Make the change** the user asked for. Look is CSS tokens at the top of `<style>`; views are `homeView()`,
    `decksView()`, `reviewView()`, `setupView()`, `errorView()`; game rules go in `rate(ease)` / `score(ease)`.
    Don't touch the card section (`cardDoc`, `typeQ`, `typeA`, `sounds`) unless the task is about cards.
@@ -37,7 +38,8 @@ App source (bridge, picker, card isolation): https://github.com/Pedrubik2000/kum
    `versionCode` (3 = first catalog version; raise only if you need a newer bridge call).
 6. **Verify** (next section). Fix and re-verify until all checks pass.
 7. **Commit** `skins/ocean` and `catalog.json` together. Push only if the user asked; otherwise say it's ready.
-   Live as soon as it's on `main` (the app reads `raw.githubusercontent.com/.../main/catalog.json`).
+   Live within ~5 minutes of reaching `main` (the app reads `raw.githubusercontent.com/.../main/catalog.json`,
+   which GitHub caches for 300 s).
 
 ## Changing an existing skin
 
@@ -61,7 +63,7 @@ Without `window.Anki` the page uses its `mock` (example decks and cards). Check,
   → "deck done" → back home. `back()` returns `true` inside the reviewer and `false` on home.
 - `pad("x")`, `pad("a")`, `pad("y")`, `pad("b")` show the answer on the question side and answer 1-4 on the
   answer side; `pad("r1")` leaves the deck.
-- The card iframe is `#face`, inside a positioned box, and the ✎ 🗑 ⋯ buttons don't cover its first line.
+- The card iframe is `#face`, inside its own box, and the ✎ 🗑 ⋯ buttons don't cover its first line.
 - `python -m json.tool catalog.json` succeeds and the entry's `files` all exist.
 - Take a screenshot of home, question and answer and look at them before you report success.
 
@@ -85,14 +87,14 @@ Globals `shared.js` reads: `st` (from `B.status()`: `cardUrl`, `mediaBase`), `ca
 
 ## Bridge calls (`B.name(...)`, all return strings; JSON ones need `JSON.parse`)
 
-`status()` JSON {pkg, anki, media, cardUrl, mediaBase} · `grantAnki()` · `grantMedia()` ·
+`status()` JSON {pkg, anki, media, cardUrl, mediaBase, sprites?, have?} · `grantAnki()` · `grantMedia()` ·
 `decks()` JSON [{id, name "A::B", new, learn, due, collapsed?}] · `next(deckId)` JSON {nid, ord, q, a, css, times[4],
-fields, flag, queue?} or null · `answer(nid, ord, ease, ms≤60000)` · `undoLabel()` · `undo()` ·
+fields, flag, tags, lapses, model, queue?} or null · `answer(nid, ord, ease, ms≤60000)` · `undoLabel()` · `undo()` ·
 `today()` JSON {cards, seconds} or null · `activity(days)` JSON {"YYYY-MM-DD": [reviews, ms, reviewCards, passed]} ·
 `progressRead()` JSON {device: data} · `progressWrite(device, json)` · `bury|suspend(nid, ord)` · `flag(nid, ord, 0-7)` ·
 `deleteNote(nid)` · `editNote(nid, ord)` · `openScreen(stats|browser|add|deck_options|settings, deckId)` ·
 `browse(search)` · `searchNotes(query)` · `sync()` · `openAnki()` · `useSkin("")` (picker) · `settings(1)` ·
-`setCollapsed(deckId, 0|1)` · `model()` · `vibrate(json pattern)` · `music()`.
+`setCollapsed(deckId, 0|1)` · `model()` · `vibrate("40,60,40")` (ms on, off, on…) · `music()`.
 Any call can throw when kuma3 is closed: catch and show `errorView()`. Wrap calls in an `api` object with a
 matching `mock` so the page runs in a browser (copy the pattern from the base skin).
 

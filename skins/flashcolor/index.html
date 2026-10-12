@@ -296,6 +296,7 @@ function rate(ease) {
 function back() {
   if (sheet) { sheet = null; render(); return true; }
   if (view === "review") { leaveDeck(); return true; }
+  if (view === "decks") { view = "home"; render(); return true; }
   return false;
 }
 // the gamepad (AnKing layout like the other skins): review X Again, A Hard, Y Good, B Easy (any shows the answer

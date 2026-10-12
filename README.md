@@ -30,6 +30,9 @@ files an entry lists, from `skins/<id>/`:
 
 ## Adding a skin
 
+Using a coding agent (Claude Code and others)? Point it at this repo: `AGENTS.md` (also loaded through `CLAUDE.md`)
+has the step-by-step instructions, the rules and the checks it must run.
+
 Write the page as described in "How to make a kuma3 skin", put it in `skins/<id>/`, add its entry to
 `catalog.json`, and try it in a browser: serve this repo (`python -m http.server`) and open `skins/<id>/index.html`.
 Without the app the pages use example decks and cards. `skins/shared.js` is a copy of the app's own file, only for

@@ -2,7 +2,7 @@
   "skins": [
     {"id": "onigiri", "name": "Onigiri", "icon": "🍙", "bg": "#2f8f5f", "version": 1, "app": 3, "files": ["index.html"],
      "about": "A calm dashboard: stats, heatmap, palettes, one Study button"},
-    {"id": "flashcolor", "name": "Flashcolor", "icon": "🟨", "bg": "#d9a900", "version": 1, "app": 3, "files": ["index.html"],
+    {"id": "flashcolor", "name": "Flashcolor", "icon": "🟨", "bg": "#d9a900", "version": 2, "app": 3, "files": ["index.html"],
      "about": "One colour per moment, huge type: green home, yellow question, black answer"},
     {"id": "xp", "name": "Anki XP", "icon": "🪟", "bg": "#245edb", "version": 1, "app": 3, "files": ["index.html", "icon.png"],
      "about": "Windows XP: XP, combos, quests, trophies; can be your home screen"},

@@ -11,6 +11,7 @@ don't like is removed with ✕ in the picker. Your XP and streak stay either way
 | Anki XP | Windows XP: XP, combos, quests, trophies |
 | Anki Hunger | Fear & Hunger fights (sprites are not included: put your own in `Pictures/anki-hunger`) |
 | Anki Joker | Balatro-style runs where your reviews are the cards |
+| Joker XP | Anki XP's game (combos, quests, boss cards, trophies) on a Balatro table |
 
 ## How the app uses this repo
 

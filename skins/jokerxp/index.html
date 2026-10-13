@@ -106,6 +106,17 @@ tr.row.sel td{background:rgba(255,255,255,.14)}
 .anki{flex:1;width:min(100%,680px);align-self:center;min-height:0;display:flex;border-radius:14px;background:rgba(14,24,26,.92);
   border:3px solid #cfd8d9;box-shadow:0 6px 0 rgba(0,0,0,.4)}
 .anki iframe{flex:1;border:0;background:#0000;border-radius:12px;width:100%}
+/* shared.js' card corner (🗑 ✎ ⋯, inline-styled): chunky labelled buttons; ⋯ keeps its inline flag ring */
+.cardtools{top:8px!important;right:8px!important;gap:6px!important}
+.cardtools>button{width:auto!important;height:34px!important;border-radius:8px!important;padding:0 10px!important;font-size:0!important;line-height:34px!important;
+  filter:drop-shadow(0 3px 0 rgba(0,0,0,.4))}
+.cardtools>button::before{font:900 14px/34px "Trebuchet MS","Roboto Condensed",Roboto,system-ui,sans-serif;text-shadow:0 2px 0 rgba(0,0,0,.35)}
+.cardtools>button[title^="Delete"]{background:var(--mult)!important}.cardtools>button[title^="Delete"]::before{content:"Delete"}
+.cardtools>button[title^="Edit"]{background:var(--chips)!important}.cardtools>button[title^="Edit"]::before{content:"Edit"}
+.cardtools>button[title^="Flag"]{background:var(--orange)!important}.cardtools>button[title^="Flag"]::before{content:"More"}
+.cardmenu{top:44px!important;background:var(--panel)!important;border:2px solid var(--edge);font:900 15px "Trebuchet MS",Roboto,system-ui,sans-serif!important;box-shadow:0 5px 0 rgba(0,0,0,.4)!important}
+.cardmenu [data-a]{border-radius:8px!important;margin-top:4px!important;background:var(--inner)!important;padding:10px!important}
+#un{background:#566}
 .timer{height:6px;flex:none;border-radius:3px;background:rgba(0,0,0,.35);overflow:hidden;width:min(100%,680px);align-self:center}
 .timer i{display:block;height:100%;width:100%;background:var(--gold)}
 .timer.wait i{background:#778}
@@ -226,7 +237,10 @@ const mock = (() => {
     answer(card, ease) {
       const d = decks.find(x => x.id === sel), k = d.new ? "new" : d.learn ? "learn" : "due";
       d[k]--; if (ease === 1) d.learn++;
+      mock.last = {d, k, ease};
     },
+    undoLabel: () => mock.last ? "Undo Answer Card" : "",
+    undo() { const l = mock.last; if (!l) return 0; l.d[l.k]++; if (l.ease === 1) l.d.learn--; mock.last = null; return 1; },
     sync() { balloon("kuma3 sync", "In the app this asks kuma3 to sync with AnkiWeb."); },
     open() {}, grantAnki() {}, grantMedia() {}
   };
@@ -238,7 +252,7 @@ const api = B ? {
   answer: (c, ease, ms) => B.answer(c.nid, c.ord, ease, ms),
   bury: c => B.bury(c.nid, c.ord), openKumapie: c => B.openKumapie(c.nid), vibrate: p => B.vibrate(p), boss: id => JSON.parse(B.boss(id)),
   progressRead: () => JSON.parse(B.progressRead()), progressWrite: (d, t) => B.progressWrite(d, t), improved: c => B.improved(c.nid, c.ord, c.tags),
-  sync: () => B.sync(), open: () => B.openAnki(),
+  sync: () => B.sync(), open: () => B.openAnki(), undoLabel: () => B.undoLabel(), undo: () => +B.undo(),
   grantAnki: () => B.grantAnki(), grantMedia: () => B.grantMedia()
 } : mock;
 
@@ -364,8 +378,8 @@ function reviewView() {
   $("wtitle").textContent = (d?.name ?? "").split("::").at(-1);
   if (!card) {
     C.innerHTML = `${sess?.reps ? summary(d) : `<div class="sunken msg"><div class="q">Congratulations!</div><p>You have finished this deck for now.</p></div>`}
-    <div class="row-btns"><button class="btn" id="bk">Decks</button><button class="btn" id="sy">Sync</button></div>`;
-    $("bk").onclick = leaveDeck; $("sy").onclick = sync;
+    <div class="row-btns">${undoBtn()}<button class="btn" id="bk">Decks</button><button class="btn" id="sy">Sync</button></div>`;
+    $("bk").onclick = leaveDeck; $("sy").onclick = sync; $("un") && ($("un").onclick = undoLast);
     return;
   }
   if (blocked(card)) {
@@ -385,14 +399,14 @@ function reviewView() {
   ${shown ? "" : `<div class="timer wait" id="timer"><i></i></div>`}
   <div class="row-btns">${shown
     ? ["Again","Hard","Good","Easy"].map((b, k) => `<button class="btn" data-r="${k + 1}"><small>${esc(card.times[k] ?? "")}</small>${b}</button>`).join("")
-    : `<button class="btn" id="show" style="min-width:180px">Show Answer</button>`}</div>
+    : `${undoBtn()}<button class="btn" id="show" style="min-width:180px">Show Answer</button>`}</div>
   <div class="prog">${"<i></i>".repeat(blocks)}</div>
   <div class="status"><span>${done} reviewed here</span><span>${esc(d.name)}</span></div>`;
   showCard($("face"), shown ? cardDoc(typeA(card.a), sounds(card.q)) : cardDoc(typeQ(card.q), [], wordHook()));
   drawTimer();
   ducked = false; setVol();
   if (shown) C.querySelectorAll("[data-r]").forEach(b => b.onclick = () => rate(+b.dataset.r));
-  else $("show").onclick = reveal;
+  else { $("show").onclick = reveal; $("un") && ($("un").onclick = undoLast); }
 }
 
 // The deck's done: a report window for this session (since Study was pressed).
@@ -435,8 +449,26 @@ function rate(ease) {
   if (!card) return;
   try {
     api.answer(card, ease, Math.min(Date.now() - shownAt, 60000));
+    undoable = {mine: JSON.stringify(mine), bosses: JSON.stringify(bosses), combo, done, sess: sess && {...sess}};
     done++; score(ease);
     decks = api.decks().filter(d => !(d.name === "Default" && !left(d)));
+    nextCard();
+  } catch (e) { failed(); }
+}
+// Undo: kuma3 takes the last answer back (its own undo, so several steps work); the skin also takes back that
+// answer's XP, reps, combo and boss (one step: older answers only come back as cards).
+let undoable = null;
+function undoBtn() { let l = ""; try { l = api.undoLabel(); } catch (e) {} return l ? `<button class="btn" id="un" title="${esc(l)}">↶ Undo</button>` : ""; }
+function undoLast() {
+  try {
+    if (!api.undo()) return;
+    if (undoable) {
+      mine = JSON.parse(undoable.mine); bosses = JSON.parse(undoable.bosses); saveBosses();
+      combo = undoable.combo; done = undoable.done; if (sess && undoable.sess) sess = undoable.sess;
+      undoable = null; saveGame();
+    }
+    decks = api.decks().filter(d => !(d.name === "Default" && !left(d)));
+    pop("UNDO");
     nextCard();
   } catch (e) { failed(); }
 }

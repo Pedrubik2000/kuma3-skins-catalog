@@ -27,10 +27,9 @@ body{overflow:hidden;font:var(--fs) var(--ui);color:var(--ink);background:var(--
 .icon{width:84px;display:grid;justify-items:center;gap:4px;color:#fff;text-shadow:1px 1px 1px #000;text-align:center;padding:4px;border:1px dotted transparent}
 .icon .glyph{width:48px;height:48px;filter:drop-shadow(1px 2px 2px rgba(0,0,0,.5))}
 .desktop{display:flex;flex-flow:column wrap;align-content:flex-start;gap:6px;padding:12px}
-/* Home screen: _ hides the window (the desktop and its pinned apps show), the taskbar button brings it back. */
+/* _ hides the window (the desktop shows), the taskbar button brings it back. */
 body.min .win{display:none}
 body.min .task{background:#3c81f3;box-shadow:none}
-.startmenu.progs{max-height:calc(100% - 50px);overflow-y:auto}
 .ti{width:18px;height:18px;vertical-align:-4px;border-radius:3px}
 
 .win{position:absolute;left:50%;top:calc(50% - 17px);transform:translate(-50%,-50%);width:min(1100px,calc(100% - 32px));height:calc(100% - 64px);
@@ -510,57 +509,21 @@ function closeStart() { $("layer").innerHTML = ""; }
 $("start").onclick = () => {
   if ($("layer").innerHTML) return closeStart();
   $("layer").innerHTML = `<div class="startmenu"><header>🐻 Pedro</header>
-    <button data-a="programs">All Programs ▸</button><button data-a="decks">Decks</button><button data-a="quests">Daily quests</button><button data-a="stats">Statistics</button><button data-a="trophies">Trophies</button><button data-a="settings">Settings</button><button data-a="sync">Sync with AnkiWeb</button>
+    <button data-a="decks">Decks</button><button data-a="quests">Daily quests</button><button data-a="stats">Statistics</button><button data-a="trophies">Trophies</button><button data-a="settings">Settings</button><button data-a="sync">Sync with AnkiWeb</button>
     <button data-a="open">Open kuma3</button><button data-a="crt">Retro screen on/off</button></div>`;
   $("layer").querySelectorAll("[data-a]").forEach(b => b.onclick = () => {
     closeStart();
-    ({programs, decks: () => { minimize(false); if (st.anki && st.media) leaveDeck(); else render(); }, quests: questsBox, stats: statsBox, trophies: trophiesBox, settings: settingsBox, sync, open: api.open, crt: toggleCrt})[b.dataset.a]();
+    ({decks: () => { minimize(false); if (st.anki && st.media) leaveDeck(); else render(); }, quests: questsBox, stats: statsBox, trophies: trophiesBox, settings: settingsBox, sync, open: api.open, crt: toggleCrt})[b.dataset.a]();
   });
 };
 $("tStudy").onclick = study; $("tDecks").onclick = () => { if (view === "review") leaveDeck(); };
 $("tSync").onclick = sync; $("traySync").onclick = sync; $("tOpen").onclick = () => api.open();
 $("bClose").onclick = () => back();
 
-// ---------------------------------------------------------------- home screen: desktop icons, All Programs, minimize
-let pins = []; try { pins = JSON.parse(localStorage.getItem("pins") || "[]"); } catch (e) {}
-function drawDesk() {
-  $("desk").innerHTML = `<div class="icon" id="xpIcon"><img class="glyph" src="icon.png" alt="">Anki XP</div>` +
-    pins.map((a, i) => `<div class="icon" data-i="${i}"><img class="glyph" src="${a.icon}" alt="">${esc(a.label)}</div>`).join("");
-  $("xpIcon").onclick = () => minimize(false);
-  $("desk").querySelectorAll("[data-i]").forEach(el => {
-    const a = pins[+el.dataset.i];
-    el.onclick = () => B?.launch(a.pkg, a.cls);
-    el.oncontextmenu = e => { e.preventDefault(); pin(a); };   // hold an icon to take it off the desktop
-  });
-}
-function pin(a) {
-  const had = pins.some(p => p.cls === a.cls);
-  pins = had ? pins.filter(p => p.cls !== a.cls) : [...pins, a];
-  try { localStorage.setItem("pins", JSON.stringify(pins)); } catch (e) {}
-  drawDesk(); balloon(a.label, had ? "Removed from the desktop." : "Added to the desktop.");
-}
+// ---------------------------------------------------------------- desktop: the Anki XP icon, minimize
+$("desk").innerHTML = `<div class="icon" id="xpIcon"><img class="glyph" src="icon.png" alt="">Anki XP</div>`;
+$("xpIcon").onclick = () => minimize(false);
 function minimize(on = !document.body.classList.contains("min")) { document.body.classList.toggle("min", on); }
-function home() { closeStart(); minimize(true); }   // the Home button while Anki XP is in front
-// The icons take ~3 s on the tablet, so the app loads them on its own thread and calls gotApps(): the menu shows the
-// last list at once and redraws when the new one (installed or removed apps) arrives.
-let appList = null;
-function gotApps(list) {
-  appList = list;
-  const open = $("layer").querySelector(".progs");
-  if (open) { const y = open.scrollTop; programs(false); $("layer").querySelector(".progs").scrollTop = y; }
-}
-function programs(load = true) {
-  if (load) B ? B.loadApps() : (appList = []);
-  const apps = appList || [];
-  $("layer").innerHTML = `<div class="startmenu progs"><header>All Programs <small>(hold one to pin it)</small></header>${apps.map((a, i) =>
-    `<button data-p="${i}"><img class="ti" src="${a.icon}" alt=""> ${esc(a.label)}</button>`).join("") || `<button>${B ? "Loading…" : "Only in the app"}</button>`}</div>`;
-  $("layer").querySelectorAll("[data-p]").forEach(b => {
-    const a = apps[+b.dataset.p];
-    b.onclick = () => { closeStart(); B.launch(a.pkg, a.cls); };
-    b.oncontextmenu = e => { e.preventDefault(); pin(a); };
-  });
-}
-drawDesk(); B?.loadApps();
 try { const w = B?.wallpaper(); if (w) $("desk").style.background = `url("${w}") center/cover`; } catch (e) {}   // Pictures/anki-xp on the device
 $("bMin").onclick = () => minimize(true); $("task").onclick = () => minimize();
 

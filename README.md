@@ -8,7 +8,7 @@ don't like is removed with ✕ in the picker. Your XP and streak stay either way
 | --- | --- |
 | Onigiri | A calm dashboard: stats, heatmap, palettes, one Study button |
 | Flashcolor | One colour per moment, huge type: green home, yellow question, black answer |
-| Anki XP | Windows XP: XP, combos, quests, trophies; can be your home screen |
+| Anki XP | Windows XP: XP, combos, quests, trophies |
 | Anki Hunger | Fear & Hunger fights (sprites are not included: put your own in `Pictures/anki-hunger`) |
 | Anki Joker | Balatro-style runs where your reviews are the cards |
 

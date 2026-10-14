@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>kuma3 Ink</title>
+<style>
+/* Ink: for e-ink readers (made on a Boox Page). Light Phone look: words only, black on white, nothing moves.
+   Every changed pixel costs a refresh, so no animations or timers; long lists page instead of scrolling; a black
+   flash every few cards clears the ghosting. The page buttons (volume keys) answer: next = Good, previous = Again. */
+:root{--bg:#fff;--ink:#000;--grey:#666;--sans:"sans-serif-light",Roboto,system-ui,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;-webkit-tap-highlight-color:transparent}
+body{display:flex;flex-direction:column;overflow:hidden;background:var(--bg);color:var(--ink);font:300 20px/1.3 var(--sans)}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;border-radius:6px}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+button:active,button.on{background:var(--ink)!important;color:var(--bg)!important}
+main{flex:1;min-height:0;display:flex;flex-direction:column;padding:max(28px,env(safe-area-inset-top)) 32px max(24px,env(safe-area-inset-bottom))}
+.top{flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:17px;color:var(--grey)}
+.top button{color:var(--grey);padding:6px 8px;margin:-6px -8px}
+.top .t{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .r{display:flex;gap:22px}
+.list{flex:1;min-height:0;overflow:hidden;margin-top:40px}
+.deck{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 8px;margin:0 -8px;width:calc(100% + 16px);text-align:left;font-size:38px;font-weight:300}
+.deck span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.deck b{font-weight:300;font-size:28px;font-variant-numeric:tabular-nums}
+.deck.z{color:var(--grey)}
+.foot{flex:none;display:flex;justify-content:space-between;align-items:baseline;gap:16px;font-size:19px;padding-top:16px}
+.foot button{padding:8px 10px;margin:-8px -10px}
+.cardbox{flex:1;min-height:0;position:relative;margin:12px -16px}
+#face{width:100%;height:100%;border:0;display:block;background:var(--bg)}
+.rate{flex:none;display:flex;justify-content:space-between;font-size:28px;font-weight:400;padding-top:8px}
+.rate button{padding:14px 12px;margin:0 -12px}
+.rate .hint{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:8px}
+.show{flex:none;width:100%;padding:16px;font-size:28px;font-weight:400;border:2px solid var(--ink);border-radius:999px}
+.msg{flex:1;display:flex;flex-direction:column;justify-content:center;gap:18px;font-size:24px}
+.msg .big{font-size:44px}
+.msg button{align-self:flex-start;font-size:28px;font-weight:400;text-decoration:underline;text-underline-offset:8px;padding:8px 10px;margin:0 -10px}
+.menu{flex:1;min-height:0;overflow:hidden;margin-top:28px;display:flex;flex-direction:column}
+.menu button{text-align:left;font-size:30px;padding:10px 8px;margin:0 -8px}
+.menu .set{display:flex;justify-content:space-between;align-items:baseline;width:calc(100% + 16px)}
+.menu .set b{font-weight:400;font-size:24px}
+#flash{position:fixed;inset:0;background:#000;z-index:9}
+</style>
+</head>
+<body>
+<main id="main"></main>
+<script src="../shared.js"></script>
+<script>
+// ---------------------------------------------------------------- data: the bridge, or example data in a browser
+const mock = (() => {
+  const decks = [
+    {id: "1", name: "Deutsch", new: 12, learn: 3, due: 51},
+    {id: "2", name: "Deutsch::Core 1000", new: 4, learn: 2, due: 28, cards: [
+      ["der Schlüssel", "der Schlüssel<hr>key<br><i>Ich habe meinen Schlüssel im Büro vergessen.</i>"],
+      ["Es ist nicht weit.", "Es ist nicht weit.<hr>It's not far.<br><i>weit = far</i>"]]},
+    {id: "3", name: "Deutsch::Grammatik A1", new: 5, learn: 0, due: 0, cards: [["der, die oder das? ___ Tisch", "der Tisch"]]},
+    {id: "4", name: "Deutsch::Mined", new: 0, learn: 1, due: 11, cards: [["Wo ist er?", "Wo ist er?<hr>Where is he?"]]},
+    {id: "5", name: "Deutsch::Aussprache", new: 0, learn: 0, due: 0},
+    {id: "6", name: "English", new: 0, learn: 0, due: 0},
+    {id: "7", name: "Japanese", new: 0, learn: 0, due: 8, cards: [["雨", "雨<hr>あめ · rain"]]},
+    {id: "8", name: "Japanese::Mined", new: 0, learn: 0, due: 8, cards: [["雨", "雨<hr>あめ · rain"]]},
+    {id: "9", name: "Japanese::Grammar N2", new: 3, learn: 0, due: 2, cards: [["〜わけがない", "〜わけがない<hr>there's no way that…"]]}];
+  let n = 0;
+  return {
+    status: () => ({pkg: "example", anki: true, media: true, mediaBase: ""}),
+    decks: () => decks.map(({cards, ...d}) => d),
+    next(id) {
+      const d = decks.find(x => x.id === id), c = d?.cards || decks.find(x => x.name.startsWith(d?.name + "::") && x.cards)?.cards;
+      if (!c || !(d.new + d.learn + d.due)) return null;
+      const [q, a] = c[n++ % c.length];
+      return {nid: String(n), ord: 0, css: ".card{text-align:center}", q, a, times: ["<10m", "1d", "3d", "8d"]};
+    },
+    answer() { const d = decks.find(x => x.id === sel); if (d.due) d.due--; else if (d.learn) d.learn--; else if (d.new) d.new--; },
+    today: () => ({cards: 34, seconds: 300}),
+    sync() { alert("In the app this asks kuma3 to sync with AnkiWeb."); },
+    open() { alert("In the app this opens kuma3."); }, screen(s) { alert(`In the app this opens kuma3's ${s} screen.`); },
+    settings() { alert("In the app this opens kuma3 Skins' settings."); }, skins() { alert("In the app this goes back to the skin picker."); },
+    undoLabel: () => "", undo: () => 0, grantAnki() {}, grantMedia() {}, pageKeys() {},
+    progressRead: () => ({}), progressWrite() {}, model: () => "browser"
+  };
+})();
+const api = B ? {
+  status: () => JSON.parse(B.status()), decks: () => JSON.parse(B.decks()), next: id => JSON.parse(B.next(id)),
+  answer: (c, ease, ms) => B.answer(c.nid, c.ord, ease, ms), sync: () => B.sync(), open: () => B.openAnki(),
+  today: () => JSON.parse(B.today()), undoLabel: () => B.undoLabel(), undo: () => B.undo(),
+  settings: () => B.settings(1), skins: () => B.useSkin(""), screen: (s, did) => B.openScreen(s, did ?? ""),
+  grantAnki: () => B.grantAnki(), grantMedia: () => B.grantMedia(), pageKeys: on => B.pageKeys(on ? 1 : 0),
+  progressRead: () => JSON.parse(B.progressRead()), progressWrite: (d, t) => B.progressWrite(d, t), model: () => B.model()
+} : mock;
+
+// ---------------------------------------------------------------- state
+const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
+const opt = Object.assign({size: 1, every: 8, swap: false}, store("ink-opt"));   // card text size 0-2, flash every N cards, swap page buttons
+let st = {}, decks = [], sel = store("ink-deck"), view = "home", card = null, shown = false, shownAt = 0;
+let sess = {done: 0}, page = 0, pages = 1, sinceFlash = 0;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[ch]));
+const deck = () => decks.find(d => d.id === sel);
+const left = d => d ? d.new + d.learn + d.due : 0;
+const depth = d => d.name.split("::").length - 1;
+const short = d => d.name.split("::").at(-1);
+const SIZES = [{name: "Small", px: 26}, {name: "Medium", px: 32}, {name: "Large", px: 40}];
+
+// ---------------------------------------------------------------- XP and streak: the shared progress note
+// (Again 2 XP, Hard/Good/Easy 10, no combo). This device's part is "<model>-ink-…" = {xp, days: {day: {reps, xp, goal}}}.
+let device = store("ink-device"), mine = store("ink-mine") || {xp: 0, days: {}}, others = {}, g;
+if (!device) { device = `${api.model()}-ink-${Math.random().toString(36).slice(2, 8)}`; store("ink-device", device); }
+function dayKey(back = 0) {   // Anki's day starts at 4 am (the format the other skins use)
+  const t = new Date(Date.now() - 4 * 3600e3 - back * 86400e3);
+  return `${t.getFullYear()}-${t.getMonth() + 1}-${t.getDate()}`;
+}
+function merge() {
+  const parts = [mine, ...Object.values(others)], days = {};
+  for (const p of parts) for (const [k, v] of Object.entries(p.days || {})) (days[k] ??= {reps: 0}).reps += v.reps | 0;
+  const goal = parts.map(p => p.goal || [100, 0]).reduce((x, y) => y[1] > x[1] ? y : x)[0];
+  const studied = k => (days[k]?.reps || 0) > 0;
+  let streak = 0; for (let i = studied(dayKey()) ? 0 : 1; studied(dayKey(i)); i++) streak++;
+  return {xp: parts.reduce((n, p) => n + (p.xp | 0), 0), goal, streak};
+}
+g = merge();
+function syncGame() { try { const all = api.progressRead(); delete all[device]; others = all; } catch (e) {} g = merge(); }
+function saveGame() { g = merge(); store("ink-mine", mine); try { api.progressWrite(device, JSON.stringify(mine)); } catch (e) {} }
+const level = xp => Math.floor((Math.sqrt(1 + 0.08 * xp) - 1) / 2);   // level L starts at 50·L·(L+1) XP
+function score(ease) {
+  const xp = ease === 1 ? 2 : 10, t = mine.days[dayKey()] ??= {reps: 0, xp: 0, goal: g.goal};
+  t.reps++; t.xp += xp; t.goal = g.goal; mine.xp += xp;
+  saveGame();
+}
+function todayCards() { let t = null; try { t = api.today(); } catch (e) {} return t ? t.cards : sess.done; }
+
+// ---------------------------------------------------------------- e-ink: a full refresh is one black frame, then the page again
+function flash() {
+  sinceFlash = 0;
+  const f = document.createElement("div"); f.id = "flash"; document.body.append(f);
+  setTimeout(() => f.remove(), 150);
+}
+
+// ---------------------------------------------------------------- views
+function render() { ({home: homeView, review: reviewView, menu: menuView, setup: setupView, error: errorView})[view](); }
+// Home: every deck as a big word with its count. The list pages (page buttons or "More") instead of scrolling.
+function homeView() {
+  const s = g.streak ? `${g.streak}-day streak` : "No streak yet";
+  $("main").innerHTML = `<div class="top"><span>${todayCards()} / ${g.goal} today</span><span>${s}</span></div>
+    <div class="list" id="list">${decks.map(d => `<button class="deck${left(d) ? "" : " z"}" data-id="${d.id}" style="padding-left:${8 + depth(d) * 28}px">
+      <span>${esc(short(d))}</span><b>${left(d)}</b></button>`).join("")}</div>
+    <div class="foot"><span>Level ${level(g.xp) + 1} · ${g.xp.toLocaleString("en")} XP</span><span id="pg"></span><button id="mn">Menu</button></div>`;
+  $("list").querySelectorAll("[data-id]").forEach(b => {
+    b.onclick = () => { pick(b.dataset.id); study(); };
+    b.oncontextmenu = e => { e.preventDefault(); api.screen("deck_options", b.dataset.id); };
+  });
+  $("mn").onclick = () => { view = "menu"; render(); };
+  paginate();
+}
+function paginate() {   // show only the rows that fit; page = which screenful
+  const list = $("list"), rows = [...list.children]; if (!rows.length) return;
+  rows.forEach(r => r.hidden = false);
+  const per = Math.max(1, Math.floor(list.clientHeight / rows[0].offsetHeight));
+  pages = Math.ceil(rows.length / per); page = Math.min(page, pages - 1);
+  rows.forEach((r, i) => r.hidden = Math.floor(i / per) !== page);
+  $("pg").innerHTML = pages > 1 ? `<button id="more">More ${page + 1}/${pages}</button>` : "";
+  if (pages > 1) $("more").onclick = () => turn(1);
+}
+function turn(step) { page = (page + step + pages) % pages; paginate(); }
+function reviewView() {
+  const d = deck();
+  let undo = ""; try { undo = api.undoLabel(); } catch (e) {}
+  const top = `<div class="top"><button class="t" id="bk">‹ ${esc(d ? short(d) : "")}</button>
+    <span class="r">${undo ? `<button id="un">Undo</button>` : ""}<button id="rp">Replay</button><span>${left(d)} left</span></span></div>`;
+  if (!card) {
+    $("main").innerHTML = `${top}<div class="msg"><div class="big">Deck clear.</div><div>${sess.done} ${sess.done === 1 ? "card" : "cards"} done.</div>
+      <button id="hm">Home</button></div>`;
+    $("hm").onclick = leaveDeck;
+  } else {
+    // the underlined answers are the page buttons'
+    const hint = opt.swap ? [3, 1] : [1, 3];
+    $("main").innerHTML = `${top}<div class="cardbox"><iframe id="face"></iframe></div>${shown
+      ? `<div class="rate">${["Again", "Hard", "Good", "Easy"].map((b, k) => `<button data-r="${k + 1}" class="${hint.includes(k + 1) ? "hint" : ""}">${b}</button>`).join("")}</div>`
+      : `<button class="show" id="show">Show answer</button>`}`;
+    showCard($("face"), shown ? cardDoc(typeA(card.a), sounds(card.q)) : cardDoc(typeQ(card.q), []));
+    if (shown) $("main").querySelectorAll("[data-r]").forEach(b => b.onclick = () => rate(+b.dataset.r));
+    else $("show").onclick = reveal;
+  }
+  $("bk").onclick = leaveDeck;
+  if (undo) $("un").onclick = undoLast;
+  $("rp").onclick = () => toCard({t: "replay"});
+}
+// Menu: kuma3's screens and this skin's three settings, as words
+function menuView() {
+  const row = (id, label) => `<button id="${id}">${label}</button>`, set = (id, label, v) => `<button class="set" id="${id}"><span>${label}</span><b>${v}</b></button>`;
+  $("main").innerHTML = `<div class="top"><button id="bk">‹ Home</button><span>Menu</span></div>
+    <div class="menu">${row("mSync", "Sync")}${row("mBrowser", "Card browser")}${row("mAdd", "Add a note")}${row("mStats", "Statistics")}
+      ${row("mOpen", "Open kuma3")}${row("mSkins", "Decks shown")}${row("mPick", "Change skin")}
+      ${set("oSize", "Card text", SIZES[opt.size].name)}${set("oEvery", "Full refresh", `every ${opt.every} cards`)}
+      ${set("oSwap", "Page buttons", opt.swap ? "next = Again" : "next = Good")}</div>`;
+  const on = (id, f) => $(id).onclick = f;
+  on("bk", () => { view = "home"; render(); });
+  on("mSync", () => api.sync()); on("mBrowser", () => api.screen("browser", sel)); on("mAdd", () => api.screen("add", sel));
+  on("mStats", () => api.screen("stats")); on("mOpen", () => api.open()); on("mSkins", () => api.settings()); on("mPick", () => api.skins());
+  const save = () => { store("ink-opt", opt); render(); };
+  on("oSize", () => { opt.size = (opt.size + 1) % SIZES.length; save(); });
+  on("oEvery", () => { opt.every = {4: 8, 8: 12, 12: 20, 20: 4}[opt.every] || 8; save(); });
+  on("oSwap", () => { opt.swap = !opt.swap; save(); });
+}
+function setupView() {
+  const step = !st.pkg ? "Install kuma3 first: this skin shows and answers its cards." : !st.anki ? "Allow access to your kuma3 cards." : "Allow access to all files, for card images and audio.";
+  $("main").innerHTML = `<div class="msg"><div class="big">Hello.</div><div>${step}</div>${st.pkg ? `<button id="g">Allow</button>` : ""}</div>`;
+  if ($("g")) $("g").onclick = () => st.anki ? api.grantMedia() : api.grantAnki();
+}
+function errorView() {
+  $("main").innerHTML = `<div class="msg"><div class="big">kuma3 isn't answering.</div><div>Open kuma3 once, then try again.</div>
+    <button id="again">Try again</button><button id="op">Open kuma3</button></div>`;
+  $("again").onclick = refresh; $("op").onclick = () => api.open();
+}
+
+// ---------------------------------------------------------------- reviewing
+function loadDecks() { decks = api.decks().filter(d => !(d.name === "Default" && !left(d))); }
+function refresh() {
+  try {
+    st = api.status();
+    if (!st.pkg || !st.anki || !st.media) { view = "setup"; return render(); }
+    if (view === "setup" || view === "error") view = "home";
+    loadDecks();
+    if (!deck()) sel = null;
+    if (view === "review") return nextCard();
+    syncGame();
+    render();
+  } catch (e) { view = "error"; render(); }
+}
+function pick(id) { sel = id; store("ink-deck", sel); }
+function nextCard() { typed = ""; card = sel ? api.next(sel) : null; shown = false; shownAt = Date.now(); render(); }
+function reveal() { if (card && !shown) { shown = true; render(); } }
+function study() { if (!sel) return; view = "review"; sess = {done: 0}; try { nextCard(); } catch (e) { view = "error"; render(); } }
+function undoLast() { try { if (api.undo()) { loadDecks(); sess.done = Math.max(0, sess.done - 1); nextCard(); } } catch (e) { view = "error"; render(); } }
+function leaveDeck() { view = "home"; card = null; flash(); refresh(); }
+function rate(ease) {
+  if (!card || !shown) return;
+  const b = document.querySelector(`[data-r="${ease}"]`); if (b) b.classList.add("on");   // pressed feedback for the page buttons
+  const ms = Math.min(Date.now() - shownAt, 60000);
+  try {
+    api.answer(card, ease, ms); sess.done++; score(ease); loadDecks();
+    if (++sinceFlash >= opt.every) flash();
+    nextCard();
+  } catch (e) { view = "error"; render(); }
+}
+// Android back: the menu, then the reviewer; false = the app goes to the skin picker
+function back() {
+  if (view === "menu") { view = "home"; render(); return true; }
+  if (view === "review") { leaveDeck(); return true; }
+  return false;
+}
+// The page buttons arrive as pad("next") / pad("prev") (kuma3 Skins 0.4.0+). The gamepad keeps the AnKing layout:
+// X Again, A Hard, Y Good, B Easy (any shows the answer first), right/left scroll the card, L1 replay, R1 back.
+const FACE = {x: 1, a: 2, y: 3, b: 4};
+function pad(k) {
+  if (opt.swap && (k === "next" || k === "prev")) k = k === "next" ? "prev" : "next";
+  if (view === "review") {
+    if (k === "r1") return leaveDeck();
+    if (!card) { if (FACE[k] || k === "next" || k === "prev") leaveDeck(); return; }
+    if (k === "next" || k === "prev") return shown ? rate(k === "next" ? 3 : 1) : reveal();
+    if (FACE[k]) return shown ? rate(FACE[k]) : reveal();
+    if (k === "right" || k === "left") return toCard({t: "scroll", dy: k === "right" ? -240 : 240});
+    if (k === "l1") return toCard({t: "replay"});
+    return;
+  }
+  if (view === "home") {
+    if (k === "next" || k === "down") turn(1);
+    else if (k === "prev" || k === "up") turn(-1);
+    else if (FACE[k]) { const d = left(deck()) ? deck() : decks.find(x => left(x)); if (d) { pick(d.id); study(); } }
+  }
+}
+document.addEventListener("keydown", e => {   // a hardware keyboard: space/enter show the answer, 1-4 answer
+  if (view !== "review" || !card) return;
+  if (!shown && (e.key === " " || e.key === "Enter")) { e.preventDefault(); reveal(); }
+  else if (shown && "1234".includes(e.key)) rate(+e.key);
+});
+addEventListener("focus", () => { if (view === "home") refresh(); });   // back from kuma3 or another app
+addEventListener("resize", () => { if (view === "home") paginate(); });
+
+// ---------------------------------------------------------------- the card (same as the other skins): white, black, grey only.
+// Colours become greys, videos play their sound only (a video on e-ink is a smear), no night mode.
+function cardDoc(html, skip, head = "") {
+  let first = true;
+  html = html.replace(/\[sound:([^\]]+)\]/g, (m, f) => {
+    const auto = first && !skip.includes(f); if (auto) first = false;
+    const src = esc(encodeURI(f));
+    return /\.(mp4|webm|mkv|mov|m4v)$/i.test(f)
+      ? `<video src="${src}" playsinline ${auto ? "autoplay" : ""}></video>`
+      : `<audio src="${src}" controls ${auto ? "autoplay" : ""}></audio>`;
+  });
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><base href="${esc(st.mediaBase)}"><script>(${cardHelper})()<\/script>
+${head}<style>body{background:#fff;color:#000;font:400 ${SIZES[opt.size].px}px/1.35 "sans-serif-light",Roboto,system-ui,sans-serif}html{height:100%}body{box-sizing:border-box;min-height:100%;display:flex;flex-direction:column;justify-content:safe center}hr{width:100%;border:0;border-top:2px solid #000}</style><style>${card.css || ""}</style>
+<style>html,body{margin:0}html{filter:grayscale(1) contrast(1.3)}body{padding:60px 16px 24px}*{transition:none!important;animation:none!important}video{display:none!important}img{max-width:100%;height:auto}</style></head>
+<body class="card card${card.ord + 1}">${html}</body></html>`;
+}
+const sounds = html => [...(html || "").matchAll(/\[sound:([^\]]+)\]/g)].map(m => m[1]);
+
+// Type-the-answer cards: the same box and check as the other skins, in black and white
+const TYPE = /\[\[type:(?:[^\]]*:)?([^\]:]+)\]\]/g;
+let typed = "";
+const typeQ = html => html.replace(TYPE, `<input id="typeans" value="${esc(typed)}" autocomplete="off" autocapitalize="off" spellcheck="false"
+  style="font:inherit;font-size:.7em;width:80%;max-width:20em;text-align:center;color:#000;background:#fff;border:2px solid #000">`);
+function typeA(html) {
+  let n = 0;
+  return html.replace(TYPE, (m, f) => {
+    if (n++) return "";
+    const want = new DOMParser().parseFromString(card.fields?.[f] ?? "", "text/html").body.textContent.trim();
+    const got = typed.trim(), same = got.normalize("NFKC") === want.normalize("NFKC");
+    return same ? `<div>${esc(want)} ✓</div>` : `<div><s>${esc(got || "–")}</s> ✗<br><b>${esc(want)}</b></div>`;
+  });
+}
+
+try { api.pageKeys(true); } catch (e) {}   // an older kuma3 Skins: the page buttons stay volume keys
+refresh();
+</script>
+</body>
+</html>

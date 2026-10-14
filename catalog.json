@@ -13,6 +13,8 @@
     {"id": "jokerxp", "name": "Joker XP", "icon": "🎰", "bg": "#c42a40", "version": 3, "app": 3, "files": ["index.html"],
      "about": "Anki XP's game (combos, quests, boss cards, trophies) on a Balatro table"},
     {"id": "scold", "name": "Kuma-chan", "icon": "💢", "bg": "#e8628f", "version": 3, "app": 3, "files": ["index.html"],
-     "about": "A VTuber-studio look: a girl scolds you out loud on every Again, in the deck's language (put live2d.js + voice.js in Pictures/anki-scold, else a bear)"}
+     "about": "A VTuber-studio look: a girl scolds you out loud on every Again, in the deck's language (put live2d.js + voice.js in Pictures/anki-scold, else a bear)"},
+    {"id": "ink", "name": "Ink", "icon": "✒️", "bg": "#000000", "version": 1, "app": 3, "files": ["index.html"],
+     "about": "For e-ink readers: words only, black on white, nothing moves; the page buttons answer (kuma3 Skins 0.4.0+)"}
   ]
 }

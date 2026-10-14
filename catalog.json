@@ -6,7 +6,7 @@
      "about": "One colour per moment, huge type: green home, yellow question, black answer"},
     {"id": "xp", "name": "Anki XP", "icon": "🪟", "bg": "#245edb", "version": 2, "app": 3, "files": ["index.html", "icon.png"],
      "about": "Windows XP: XP, combos, quests, trophies"},
-    {"id": "hunger", "name": "Anki Hunger", "icon": "🗡️", "bg": "#5a1010", "version": 1, "app": 3, "files": ["index.html"],
+    {"id": "hunger", "name": "Anki Hunger", "icon": "🗡️", "bg": "#5a1010", "version": 2, "app": 3, "files": ["index.html"],
      "about": "Fear & Hunger fights: arms, legs, head; Again = you get hit (bring your own sprites)"},
     {"id": "joker", "name": "Anki Joker", "icon": "🃏", "bg": "#1d6b45", "version": 1, "app": 3, "files": ["index.html"],
      "about": "Balatro runs: blinds, hands and jokers"},

@@ -358,7 +358,7 @@ function cardDoc(html, skip, head = "") {
   });
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><base href="${esc(st.mediaBase)}"><script>(${cardHelper})()<\/script>
 ${head}<style>${card.css || ""}</style><style>html,body,.card{background:transparent!important;color:#e8e0d0!important}html{color-scheme:dark}
-body{margin:0;padding:10px}img,video{max-width:100%;height:auto}</style></head>
+body{margin:0;padding:10px}img,video{max-width:100%;max-height:calc(100vh - 20px);width:auto;height:auto;vertical-align:middle}</style></head>
 <body class="card card${card.ord + 1}">${html}</body></html>`;
 }
 const sounds = html => [...(html || "").matchAll(/\[sound:([^\]]+)\]/g)].map(m => m[1]);

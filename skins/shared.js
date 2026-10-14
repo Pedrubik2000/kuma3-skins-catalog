@@ -22,6 +22,10 @@ function showCard(frame, html) {
 // ✎ 🗑 ⋯ in the card's corner: kuma3's note editor on this card (Back returns here, and the card is fetched again);
 // delete the note after the app's own confirmation; ⋯ = flag, bury, suspend. A card that leaves (deleted, buried,
 // suspended) goes through cardGone(): the skin's cardDeleted() or refresh() shows the next one.
+const ICONS = {
+  "⋯": '<circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/>',
+  "🗑": '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  "✎": '<path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/>'};
 const FLAGS = ["", "#e53935", "#fb8c00", "#43a047", "#1e88e5", "#ec407a", "#26a69a", "#8e24aa"];   // 1 red … 7 purple
 function cardGone() { window.cardDeleted ? cardDeleted() : refresh(); }
 function editButton(frame) {
@@ -31,10 +35,12 @@ function editButton(frame) {
   const tools = document.createElement("div");
   tools.className = "cardtools";
   tools.style.cssText = "position:absolute;top:6px;right:6px;z-index:3;display:flex;gap:8px;align-items:flex-start";
-  const round = "width:40px;height:40px;border-radius:50%;border:0;padding:0;background:#0007;color:#fff;font-size:20px;line-height:40px;cursor:pointer";
+  // plain line icons in the skin's own text colour, no disc, so they sit quietly on any card (a skin can restyle .cardtools)
+  const round = "width:40px;height:40px;border-radius:50%;border:0;padding:0;background:none;color:inherit;font-size:22px;line-height:0;cursor:pointer;display:grid;place-items:center";
   const button = (icon, title, act) => {
     const b = document.createElement("button");
-    b.textContent = icon; b.title = title; b.onclick = act; b.style.cssText = round;
+    b.innerHTML = `<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.55">${ICONS[icon]}</svg>`;
+    b.title = title; b.onclick = act; b.style.cssText = round;
     tools.append(b);
     return b;
   };

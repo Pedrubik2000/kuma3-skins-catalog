@@ -11,6 +11,8 @@
     {"id": "joker", "name": "Anki Joker", "icon": "🃏", "bg": "#1d6b45", "version": 1, "app": 3, "files": ["index.html"],
      "about": "Balatro runs: blinds, hands and jokers"},
     {"id": "jokerxp", "name": "Joker XP", "icon": "🎰", "bg": "#c42a40", "version": 2, "app": 3, "files": ["index.html"],
-     "about": "Anki XP's game (combos, quests, boss cards, trophies) on a Balatro table"}
+     "about": "Anki XP's game (combos, quests, boss cards, trophies) on a Balatro table"},
+    {"id": "scold", "name": "Kuma-chan", "icon": "💢", "bg": "#e8628f", "version": 1, "app": 3, "files": ["index.html"],
+     "about": "Flashcolor in pink with a bear who scolds you every time you press Again"}
   ]
 }

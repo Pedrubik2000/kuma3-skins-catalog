@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>kuma3 Scold</title>
 <style>
-/* Scold: Flashcolor with Kuma-chan, a bear who scolds you on every Again (angrier each Again in a row).
+/* Scold: Flashcolor with Kuma-chan, who scolds you on every Again (angrier each Again in a row): a Live2D girl when
+   Pictures/anki-scold/live2d.js is on the device (tools/scold_live2d.py), else a bear drawn here.
    Home is one number: the cards left in the deck the Start button picks. */
 :root{--bg:#ffc4d8;--ink:#3a0f22;--again:#ff5a5a;--hard:#3a3a3a;--good:#6be37c;--easy:#ffd21f;
   --serif:"Noto Serif","Roboto Serif",Georgia,serif;color-scheme:light}
@@ -54,14 +55,24 @@ main{flex:1;min-height:0;display:flex;flex-direction:column}
 #scold{position:fixed;left:0;right:0;bottom:calc(96px + env(safe-area-inset-bottom));z-index:4;display:flex;align-items:flex-end;gap:6px;padding:0 14px;max-width:560px;margin:0 auto;animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
 #scold.mad .kuma{animation:shake .4s .3s 2}
 #scold .say{background:#fff;color:#3a0f22;border:3px solid #3a0f22;border-radius:20px 20px 20px 4px;padding:12px 16px;font:800 19px/1.25 system-ui,sans-serif;margin-bottom:58px;box-shadow:0 4px 0 #3a0f22}
+#girl{position:fixed;display:none;pointer-events:none;z-index:0}
+#girl canvas{width:100%;height:100%;display:block}
+main{position:relative;z-index:1}
+body.girlhome #girl.on{display:block;right:0;top:56px;width:min(70vw,460px);height:calc(100vh - 470px);min-height:200px}
+body.girlhome.hasgirl .big{justify-content:flex-end;padding-bottom:12px}
+body.scolding #girl.on{display:block;z-index:4;left:0;bottom:calc(84px + env(safe-area-inset-bottom));width:200px;height:250px}
+body.scolding.mad #girl.on{animation:shake2 .4s .3s 2}
+#scold.g{padding-left:190px}#scold.g .say{margin-bottom:150px}
+@keyframes shake2{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
 @keyframes pop{from{transform:translateY(140%)}}
 @keyframes shake{25%{transform:rotate(-8deg)}75%{transform:rotate(8deg)}}
-@media (prefers-reduced-motion:reduce){body,.prog i{transition:none}#scold,#scold .kuma{animation:none!important}}
+@media (prefers-reduced-motion:reduce){body,.prog i{transition:none}#scold,#scold .kuma,#girl{animation:none!important}}
 </style>
 </head>
 <body data-s="home">
 <main id="main"></main>
 <div id="layer"></div>
+<div id="girl"></div>
 <script src="../shared.js"></script>
 <script>
 // ---------------------------------------------------------------- data: the bridge, or example data in a browser
@@ -222,17 +233,71 @@ function scold(c, ease) {   // after a rating: Again = she scolds; the first pas
   else return;
   hideScold();
   const el = document.createElement("div");
-  el.id = "scold"; el.className = mood; el.innerHTML = `${kuma(mood)}<div class="say">${esc(line)}</div>`;
+  el.id = "scold"; el.className = mood + (girl ? " g" : ""); el.innerHTML = `${girl ? "" : kuma(mood)}<div class="say">${esc(line)}</div>`;
   el.onclick = hideScold;
   document.body.append(el);
+  if (girl) {   // angrier face each Again in a row
+    document.body.classList.add("scolding", mood); girlFit();
+    face(mood === "mad" ? ["mad1", "mad2", "mad3"][Math.min(fails - 1, 2)] : "smug");
+  }
   scoldTimer = setTimeout(hideScold, mood === "mad" ? 2600 : 1600);
 }
-function hideScold() { clearTimeout(scoldTimer); $("scold")?.remove(); }
+function hideScold() { clearTimeout(scoldTimer); $("scold")?.remove(); document.body.classList.remove("scolding", "mad", "happy"); face(""); girlFit(); }
+
+// ---------------------------------------------------------------- the Live2D girl: one canvas, moved by body classes
+// live2d.js (on the device, never in this repo) = PixiJS + Cubism Core + pixi-live2d-display + window.SCOLD_MODEL
+// {name, json, files: {path: data URL}}; a page here may load a device script but not fetch device files.
+let girl = null, girlApp = null, girlTried = false;
+function loadGirl() {
+  const src = new URLSearchParams(location.search).get("live2d") || st.sprites?.replace(/anki-hunger\/$/, "anki-scold/live2d.js");
+  if (girlTried || !src) return;
+  girlTried = true;
+  const s = document.createElement("script");
+  s.src = src;
+  s.onload = async () => {
+    try {
+      const M = window.SCOLD_MODEL, box = $("girl");
+      const S = new PIXI.live2d.Cubism4ModelSettings({...M.json, url: M.name});
+      S.resolveURL = p => M.files[p];
+      girlApp = new PIXI.Application({backgroundAlpha: 0, resizeTo: box, autoDensity: true, resolution: devicePixelRatio});
+      box.append(girlApp.view);
+      girl = await PIXI.live2d.Live2DModel.from(S, {autoInteract: false});
+      girl.anchor.set(.5, 0); girlApp.stage.addChild(girl);
+      // her face is set after the idle motion each frame (the model's own expressions only add to the motion's smile)
+      girl.internalModel.on("beforeModelUpdate", () => {
+        for (const [id, v] of Object.entries(FACES[curFace] || {})) girl.internalModel.coreModel.setParameterValueById(id, v);
+      });
+      box.classList.add("on"); document.body.classList.add("hasgirl");
+      render();
+    } catch (e) { console.warn("live2d", e); girl = null; }
+  };
+  document.head.append(s);
+}
+// Cubism parameter ids: the standard ones (BrowForm, MouthForm, EyeSmile) plus Mao's (MouthUp/Down/Angry, Cheek)
+const ANGRY = {ParamBrowLAngle: -1, ParamBrowRAngle: -1, ParamBrowLForm: -1, ParamBrowRForm: -1, ParamMouthForm: -1, ParamMouthUp: -1, ParamMouthDown: 1};
+const FACES = {pout: {...ANGRY, ParamMouthDown: 0}, mad1: ANGRY, mad2: {...ANGRY, ParamMouthAngry: 1, ParamMouthAngryLine: 1},
+  mad3: {...ANGRY, ParamMouthAngry: 1, ParamMouthAngryLine: 1, ParamCheek: 1}, smile: {ParamMouthForm: 1, ParamMouthUp: 1},
+  smug: {ParamEyeLSmile: 1, ParamEyeRSmile: 1, ParamMouthForm: 1, ParamMouthUp: 1, ParamCheek: 1}};
+let curFace = "";
+function face(name) { curFace = name; }
+// fit her to the box: home = head to the knees, scolding = head and shoulders
+function girlFit() {
+  if (!girl) return;
+  const on = $("girl").offsetWidth > 0;
+  if (!on) return girlApp.ticker.stop();
+  girlApp.ticker.start(); girlApp.resize();
+  const {width: w, height: h} = girlApp.screen, bust = document.body.classList.contains("scolding");
+  girl.scale.set(1);
+  const k = h / (girl.height * (bust ? .3 : .8));
+  girl.scale.set(k); girl.x = w / 2; girl.y = bust ? -h * .12 : 0;
+}
 
 // ---------------------------------------------------------------- views (each sets the body's colour: data-s)
 function render() {
   ({home: homeView, decks: decksView, review: reviewView, setup: setupView, error: errorView})[view]();
   $("layer").innerHTML = sheet ? sheetHTML() : "";
+  document.body.classList.toggle("girlhome", view === "home" && !sheet);
+  girlFit();
   if (sheet) wireSheet();
 }
 const paint = s => document.body.dataset.s = s;
@@ -243,13 +308,14 @@ function homeView() {
   $("main").innerHTML = `<div class="top"><span class="t">Lv ${L + 1} · ${t.cards} / ${g.goal} today</span>
       <button class="ib" id="sy" aria-label="Sync">${svg("sync")}</button><button class="ib" id="mo" aria-label="More">${svg("more")}</button></div>
     <div class="big">
-      ${kuma(s && !g.todayDone ? "mad" : "happy")}
+      ${girl ? "" : kuma(s && !g.todayDone ? "mad" : "happy")}
       <button class="meta pick" id="dk">${s ? esc(s.name.replaceAll("::", " · ").toUpperCase()) : "DECKS"} ▾</button>
       <div class="num">${s ? left(s) : 0}</div>
       <div class="lead">${s ? `${left(s) === 1 ? "card" : "cards"} today.<br>About ${plural(m, "minute")}.` : "Nothing due.<br>Well done."}</div>
       <div class="meta">${streak}</div>
     </div>
     <div class="foot"><button class="pill" id="go">${s ? "Start →" : "Sync"}</button></div>`;
+  if (girl) face(s && !g.todayDone ? "pout" : "smile");
   $("go").onclick = () => s ? (pick(s.id), study()) : api.sync();
   $("dk").onclick = () => { view = "decks"; render(); };
   $("sy").onclick = () => api.sync();
@@ -325,6 +391,7 @@ function refresh() {
     loadDecks();
     if (!deck()) sel = null;
     if (view === "review") return nextCard();
+    loadGirl();
     try { act = api.activity(); } catch (e) { act = {}; }
     syncGame();
     render();

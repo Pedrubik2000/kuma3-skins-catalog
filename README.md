@@ -12,6 +12,7 @@ don't like is removed with ✕ in the picker. Your XP and streak stay either way
 | Anki Hunger | Fear & Hunger fights (sprites are not included: put your own in `Pictures/anki-hunger`) |
 | Anki Joker | Balatro-style runs where your reviews are the cards |
 | Joker XP | Anki XP's game (combos, quests, boss cards, trophies) on a Balatro table |
+| Kuma-chan | Flashcolor in pink with a girl who scolds you on every Again. The Live2D girl is not included: build `Pictures/anki-scold/live2d.js` with `tools/scold_live2d.py` from Live2D's free samples (Mao); without it a bear scolds you |
 
 ## How the app uses this repo
 

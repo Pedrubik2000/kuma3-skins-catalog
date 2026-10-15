@@ -121,8 +121,8 @@ they sync to every device with the cards.
 - **Level:** `level(xp) = floor((sqrt(1 + 0.08 xp) - 1) / 2)`; level L starts at 50 · L · (L + 1) XP.
 - **Streak:** days in a row with at least one review in any skin, counting from today (or from yesterday while today
   has no review yet). No freezes.
-- **XP per answer:** Again 2, Hard/Good/Easy 10. Anki XP multiplies by its combo; a new skin should stay at or below
-  that, so no skin becomes the fast way to level up.
+- **XP per answer:** 10 for every grade, Again too, so honest grading never costs XP. Anki XP multiplies by its combo
+  and pays 15 for a fast Good/Easy; a new skin should stay at or below that, so no skin becomes the fast way to level up.
 
 ## Rules
 

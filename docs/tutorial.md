@@ -130,8 +130,8 @@ You now have a working skin; bigger changes follow the same loop of edit, reload
 - **A different layout:** rewrite `homeView()` and `reviewView()`. Keep the functions they call (`study`, `reveal`,
   `rate`, `leaveDeck`) and the card code at the bottom as they are.
 - **A dashboard:** start from Onigiri instead; it already has stat tiles, a heatmap and palettes.
-- **A game:** add your rules in `rate(ease)`, which runs after every answer. Keep XP at Again 2, Hard/Good/Easy 10,
-  so no skin becomes the fast way to level up.
+- **A game:** add your rules in `rate(ease)`, which runs after every answer. Keep XP at 10 for every grade (Again too:
+  honest grading never costs XP), so no skin becomes the fast way to level up.
 - **The rules every skin keeps:** answers only through kuma3, no music, sprites or art you don't own in the repo,
   the same gamepad buttons, and no files from the internet (the app works offline).
 - **Everything else** (the bridge calls, the page contract, how cards are shown) is in [reference.md](reference.md).

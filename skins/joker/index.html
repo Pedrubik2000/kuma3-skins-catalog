@@ -1037,8 +1037,8 @@ const sounds = html => [...(html || "").matchAll(/\[sound:([^\]]+)\]/g)].map(m =
 // Anki XP's format and rules (apps/anki-xp/src/main/assets/index.html, keep them in step): this app writes its own
 // part {xp, record, goal: [reps, set at ms], days: {day: {reps, fast, best, xp, got, goal}}, antes, best} to the kuma3
 // progress note of device "<model>-joker-…"; `g` is every part merged, so all the apps show the same XP, level, daily
-// reps and streak. Again = 2 XP, else 10 XP × (1 + combo/5, max 5) × 1.5 after the daily goal. The combo grows on
-// Hard/Good/Easy within FAST ms of the word audio ending (Anki XP's clock); Again or the clock running out breaks it.
+// reps and streak. Every grade = 10 XP (15 for a flip within FAST ms of the word audio ending, then Good or Easy)
+// × (1 + combo/5, max 5) × 1.5 after the daily goal. Every answer grows the combo; only 5 min on one card breaks it.
 let mine = {xp: 0, record: 0, goal: [100, 0], days: {}, antes: 0, best: 0}, others = {}, g, combo = 0;
 let device = ""; try { device = localStorage.getItem("joker-device") || ""; mine = JSON.parse(localStorage.getItem("joker-mine")) || mine; } catch (e) {}
 if (!device) {
@@ -1072,11 +1072,12 @@ function syncGame() {   // everyone else's parts (at start and when coming back 
 const level = xp => Math.floor((Math.sqrt(1 + 0.08 * xp) - 1) / 2);   // level L starts at 50·L·(L+1) XP
 const xpMult = () => Math.min(5, 1 + Math.floor(combo / 5)) * (g.reps >= g.goal ? 1.5 : 1);
 function xpScore(ease) {
-  const fast = thinkMs < FAST;
-  if (ease === 1 || !fast) combo = 0; else combo++;
-  const xp = ease === 1 ? 2 : Math.round(10 * xpMult());
+  const fast = thinkMs < FAST && ease >= 3;
+  if (Date.now() - shownAt > 5 * 60e3) combo = 0;
+  combo++;
+  const xp = Math.round((fast ? 15 : 10) * xpMult());
   const t = mine.days[dayKey()] ??= {reps: 0, fast: 0, best: 0, xp: 0, got: [], goal: g.goal};
-  t.reps++; t.fast += fast && ease > 1; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
+  t.reps++; t.fast += fast; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
   mine.xp += xp; mine.record = Math.max(mine.record, combo);
   saveGame();
 }
@@ -1084,7 +1085,7 @@ function xpScore(ease) {
 // ---------------------------------------------------------------- the combo clock (Anki XP's), which also sets the rank
 // Starts when the front's word audio ends (the card plays it through its own Web Audio player, hooked in wordHook),
 // right away on a card without word audio, or after 5 s if the word audio never reports back. Counts only while the
-// app is in front (deltas over 250 ms don't count). Running out breaks the combo; the card itself just waits.
+// app is in front (deltas over 250 ms don't count). Running out only ends the speed bonus; the card just waits.
 const FAST = 10000;
 let clock = {tok: 0, on: false, ms: 0, last: 0}, thinkMs = 1e9;
 const wordFile = q => /data-audio="word"[\s\S]*?\[audio:\s*([^\]]+?)\s*\]/.exec(q || "")?.[1];
@@ -1116,7 +1117,6 @@ setInterval(() => {
   const now = performance.now(), dt = now - clock.last; clock.last = now;
   if (view !== "game" || !card || phase !== "q" || !clock.on || dt > 250) return;
   clock.ms += dt;
-  if (clock.ms >= FAST) combo = 0;
   drawTimer();
 }, 100);
 

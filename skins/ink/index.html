@@ -103,7 +103,7 @@ const short = d => d.name.split("::").at(-1);
 const SIZES = [{name: "Small", px: 26}, {name: "Medium", px: 32}, {name: "Large", px: 40}];
 
 // ---------------------------------------------------------------- XP and streak: the shared progress note
-// (Again 2 XP, Hard/Good/Easy 10, no combo). This device's part is "<model>-ink-…" = {xp, days: {day: {reps, xp, goal}}}.
+// (Every grade 10 XP, Again too: honest grading never costs XP, no combo). This device's part is "<model>-ink-…" = {xp, days: {day: {reps, xp, goal}}}.
 let device = store("ink-device"), mine = store("ink-mine") || {xp: 0, days: {}}, others = {}, g;
 if (!device) { device = `${api.model()}-ink-${Math.random().toString(36).slice(2, 8)}`; store("ink-device", device); }
 function dayKey(back = 0) {   // Anki's day starts at 4 am (the format the other skins use)
@@ -123,7 +123,7 @@ function syncGame() { try { const all = api.progressRead(); delete all[device]; 
 function saveGame() { g = merge(); store("ink-mine", mine); try { api.progressWrite(device, JSON.stringify(mine)); } catch (e) {} }
 const level = xp => Math.floor((Math.sqrt(1 + 0.08 * xp) - 1) / 2);   // level L starts at 50·L·(L+1) XP
 function score(ease) {
-  const xp = ease === 1 ? 2 : 10, t = mine.days[dayKey()] ??= {reps: 0, xp: 0, goal: g.goal};
+  const xp = 10, t = mine.days[dayKey()] ??= {reps: 0, xp: 0, goal: g.goal};
   t.reps++; t.xp += xp; t.goal = g.goal; mine.xp += xp;
   saveGame();
 }

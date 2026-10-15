@@ -180,7 +180,7 @@ const depth = d => d.name.split("::").length - 1;
 const short = d => d.name.split("::").at(-1);
 
 // ---------------------------------------------------------------- XP, goal and streak: the shared progress note
-// (same rules as Anki XP without its combo: Again 2 XP, Hard/Good/Easy 10). This device's part is "<model>-scold-…"
+// (same rules as Anki XP without its combo: Every grade 10 XP, Again too: honest grading never costs XP). This device's part is "<model>-scold-…"
 // = {xp, days: {day: {reps, xp, goal}}}; `g` is every skin's parts merged, so level and streak match the other skins.
 let device = store("scold-device"), mine = store("scold-mine") || {xp: 0, days: {}}, others = {}, g;
 if (!device) { device = `${api.model()}-scold-${Math.random().toString(36).slice(2, 8)}`; store("scold-device", device); }
@@ -205,7 +205,7 @@ function syncGame() { try { const all = api.progressRead(); delete all[device]; 
 function saveGame() { g = merge(); store("scold-mine", mine); try { api.progressWrite(device, JSON.stringify(mine)); } catch (e) {} }
 const level = xp => Math.floor((Math.sqrt(1 + 0.08 * xp) - 1) / 2);   // level L starts at 50·L·(L+1) XP (Anki XP's)
 function score(ease) {
-  const xp = ease === 1 ? 2 : 10, t = mine.days[dayKey()] ??= {reps: 0, xp: 0, goal: g.goal};
+  const xp = 10, t = mine.days[dayKey()] ??= {reps: 0, xp: 0, goal: g.goal};
   t.reps++; t.xp += xp; t.goal = g.goal; mine.xp += xp;
   saveGame();
 }

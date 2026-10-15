@@ -528,9 +528,9 @@ function back() {   // Android back: true when the page handled it
 // Anki XP's format and rules (apps/anki-xp/src/main/assets/index.html, keep them in step): this app writes its own
 // part {xp, record, goal: [reps, set at ms], days: {day: {reps, fast, best, xp, got, goal}}, slain} to the kuma3
 // progress note of device "<model>-hunger-…"; `g` is every part merged (Anki XP's phone/tablet parts too), so both
-// apps show the same XP, level, daily reps and streak. Again = 2 XP, else 10 XP × (1 + combo/5, max 5) × 1.5 after
-// the daily goal. The combo grows on Hard/Good/Easy within FAST ms of the word audio ending (Anki XP's clock); Again or
-// the clock running out breaks it. Quests, trophies and the goal setting stay in Anki XP; it counts reps made here.
+// apps show the same XP, level, daily reps and streak. Every grade = 10 XP (15 for a flip within FAST ms of the word
+// audio ending, then Good or Easy) × (1 + combo/5, max 5) × 1.5 after the daily goal. Every answer grows the combo;
+// it breaks only when you leave the deck or after 5 min on one card (Anki XP's honest rules). Quests, trophies and the goal setting stay in Anki XP; it counts reps made here.
 let mine = {xp: 0, record: 0, goal: [100, 0], days: {}, slain: 0}, others = {}, g, combo = 0;
 let device = ""; try { device = localStorage.getItem("hunger-device") || ""; mine = JSON.parse(localStorage.getItem("hunger-mine")) || mine; } catch (e) {}
 if (!device) {
@@ -565,11 +565,12 @@ const level = xp => Math.floor((Math.sqrt(1 + 0.08 * xp) - 1) / 2);   // level L
 const lvPct = () => { const L = level(g.xp); return 100 * (g.xp - 50 * L * (L + 1)) / (100 * (L + 1)); };
 const mult = () => Math.min(5, 1 + Math.floor(combo / 5)) * (g.reps >= g.goal ? 1.5 : 1);
 function score(ease) {
-  const fast = thinkMs < FAST;
-  if (ease === 1 || !fast) breakCombo(); else combo++;
-  const xp = ease === 1 ? 2 : Math.round(10 * mult());
+  const fast = thinkMs < FAST && ease >= 3;
+  if (Date.now() - shownAt > 5 * 60e3) breakCombo();
+  combo++;
+  const xp = Math.round((fast ? 15 : 10) * mult());
   const t = mine.days[dayKey()] ??= {reps: 0, fast: 0, best: 0, xp: 0, got: [], goal: g.goal};
-  t.reps++; t.fast += fast && ease > 1; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
+  t.reps++; t.fast += fast; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
   mine.xp += xp; mine.record = Math.max(mine.record, combo);
   saveGame();
   return xp;
@@ -614,8 +615,7 @@ setInterval(() => {
   if (view !== "battle" || !card || phase !== "q" || !clock.on || dt > 250) return;
   clock.ms += dt;
   if (clock.ms >= FAST && !clock.broke) {   // only the scene changes: redrawing the card would restart its audio
-    clock.broke = true;
-    if (combo >= 3) { breakCombo(); drawScene(); } else combo = 0;
+    clock.broke = true;   // running out only ends the speed bonus
   }
   drawTimer();
 }, 100);

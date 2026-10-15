@@ -102,7 +102,8 @@ matching `mock` so the page runs in a browser (copy the pattern from the base sk
 
 - **Controller (AnKing):** X Again, A Hard, Y Good, B Easy; on the question side any of them reveals. Right/left
   scroll the card (`toCard({t:"scroll", dy})`), L1 replay, R1 leaves the deck. Keyboard: Space/Enter reveal, 1-4 answer.
-- **XP:** Again 2, Hard/Good/Easy 10 (Anki XP multiplies by its combo; never exceed that). Progress lives in the
+- **XP:** every grade 10, Again too, so honest grading never costs XP (Anki XP multiplies by its combo and pays 15
+  for a fast Good/Easy; never exceed that). Progress lives in the
   shared note through `progressRead/progressWrite`: write only this device's part, id `<model>-<id>-<random>`,
   shape `{xp, days: {"Y-M-D": {reps, xp, goal}}}`; day starts at 4 am (`dayKey()`); level
   `floor((sqrt(1 + 0.08·xp) - 1) / 2)`; streak = consecutive days with ≥1 review, no freezes. Copy `merge()` from

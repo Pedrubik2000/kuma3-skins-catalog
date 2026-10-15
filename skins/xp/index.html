@@ -112,7 +112,7 @@ iframe.face{flex:1;min-height:0;width:100%;border:1px solid #7f9db9;background:#
 @keyframes inr{from{transform:translateX(60px);opacity:0}}
 .pxm .t{display:inline-block;color:#ffd700;font-size:28px;text-shadow:1px 1px 2px #000;animation:juice-big .5s ease-out}
 .pxm.fly{transition:transform .35s ease-in,opacity .35s ease-in;transform:translate(-50%,-60vh) scale(.5);opacity:0}
-/* The 10 s combo clock: waits (blue) while the word audio plays, then drains; red in the last 3 s. */
+/* The 10 s speed-bonus clock: waits (blue) while the word audio plays, then drains; red in the last 3 s. */
 .timer{height:6px;flex:none;background:#c9c6b8;border:1px solid #808080;overflow:hidden}
 .timer i{display:block;height:100%;width:100%;background:#2ed330}
 .timer.wait i{background:#9db3d6}
@@ -403,7 +403,7 @@ function reviewView() {
     return;
   }
   const blocks = Math.max(1, Math.round(30 * done / (done + left(d) || 1)));
-  C.innerHTML = `${isBoss(card) ? `<div class="boss">👑 BOSS CARD · failed ${card.lapses}× · ×3 XP if you get it right</div>` : ""}<div class="deckline"><span class="c-new">${d.new}</span> + <span class="c-learn">${d.learn}</span> + <span class="c-due">${d.due}</span></div>
+  C.innerHTML = `${isBoss(card) ? `<div class="boss">👑 BOSS CARD · failed ${card.lapses}× · ×3 XP whatever you press</div>` : ""}<div class="deckline"><span class="c-new">${d.new}</span> + <span class="c-learn">${d.learn}</span> + <span class="c-due">${d.due}</span></div>
   <iframe class="face" id="face"></iframe>
   ${shown ? "" : `<div class="timer wait" id="timer"><i></i></div>`}
   <div class="row-btns">${shown
@@ -424,7 +424,7 @@ function reviewView() {
 function summary(d) {
   if (!sess.cheered) {
     sess.cheered = true; chime([523, 659, 784, 1047, 784, 1047], "square");
-    if (sess.reps >= 20 && !sess.again) { checkAch(["perfect"]); saveGame(); }
+    if (sess.reps >= 20) { checkAch(["perfect"]); saveGame(); }
   }
   const mins = Math.max(1, Math.round((Date.now() - sess.start) / 60000));
   const rows = [
@@ -594,8 +594,8 @@ function settingsBox() {
   const ck = (id, on, label) => `<label class="opt"><input type="checkbox" id="${id}" ${on ? "checked" : ""}> ${label}</label>`;
   $("layer").innerHTML = `<div class="veil" id="oveil"><div class="dlg"><div class="titlebar"><span class="t">Settings</span><span class="tb x" id="ox">✕</span></div>
     <div class="body">${ck("oSound", prefs.sound, "Game sounds (blips, combo, fanfares)")}${ck("oVib", prefs.vibrate, "Vibration")}${ck("oCrt", crt, "Retro CRT screen")}
-    <label class="opt">Combo time limit <select id="oLim">${LIMITS.map(n => `<option value="${n}" ${n === prefs.limit ? "selected" : ""}>${n} s</option>`).join("")}</select></label>
-    <p class="hint">The clock starts when the word audio ends. Music: tap the speaker in the taskbar, hold it for the volume.</p></div></div></div>`;
+    <label class="opt">Speed bonus time <select id="oLim">${LIMITS.map(n => `<option value="${n}" ${n === prefs.limit ? "selected" : ""}>${n} s</option>`).join("")}</select></label>
+    <p class="hint">Show the answer before the clock runs out, then Good or Easy, for ${FAST_POINTS} points instead of ${POINTS}; every grade counts the same, Again too. The clock starts when the word audio ends. Music: tap the speaker in the taskbar, hold it for the volume.</p></div></div></div>`;
   $("oSound").onchange = e => { prefs.sound = e.target.checked; savePrefs(); blip(3); };
   $("oVib").onchange = e => { prefs.vibrate = e.target.checked; savePrefs(); buzz(3); };
   $("oCrt").onchange = e => toggleCrt(e.target.checked);
@@ -604,15 +604,16 @@ function settingsBox() {
 }
 
 // ---------------------------------------------------------------- game: XP, combo, daily goal, daily quests
-// Hard/Good/Easy pay the same (10 XP × multiplier), Again 2 XP: the button can't buy XP beyond that.
-// The combo grows on Hard/Good/Easy answered within FAST ms of the word audio ending; Again, the clock
-// running out, or leaving the deck breaks it.
+// Honest grading never costs anything (same rules as kuma3's Anki XP, XpGame.score): every grade pays
+// POINTS × multiplier and grows the combo, so pressing Hard instead of Again never pays (it would feed FSRS a
+// lie). Speed only adds: showing the answer within FAST ms of the word audio ending, then Good or Easy, pays
+// FAST_POINTS. The combo breaks only when you leave the deck or after IDLE ms on one card.
 // Synced through kuma3 (bridge progressRead/progressWrite): each device keeps only its own part, `mine`
 // = {xp, record, goal: [reps, set at ms], days: {day: {reps, fast, best, xp, got, goal}}}, in its progress
 // note; `g` is everyone's parts merged (XP and daily counts added up, best/record the highest, the latest
 // goal), so the phone and the tablet share XP, quests and the streak.
-const QUEST_XP = 100, MILESTONES = [10, 25, 50, 100];
-let FAST = prefs.limit * 1000;   // the combo time limit (Settings)
+const QUEST_XP = 100, MILESTONES = [10, 25, 50, 100], POINTS = 10, FAST_POINTS = 15, IDLE = 5 * 60e3;
+let FAST = prefs.limit * 1000;   // the speed bonus time (Settings)
 let mine = {xp: 0, record: 0, goal: [100, 0], days: {}}, others = {}, g,
     combo = 0, juice = "", thinkMs = 1e9, recordShown = false, sess = null;
 let device = ""; try { device = localStorage.getItem("xp-device") || ""; } catch (e) {}
@@ -672,21 +673,22 @@ function quests() {   // three a day; sizes change with the date
   return [
     {id: "reps", text: `Do ${Math.round(g.goal * [1.2, 1.5, 2][h % 3])} reps`, need: Math.round(g.goal * [1.2, 1.5, 2][h % 3]), have: g.reps},
     {id: "combo", text: `Reach a ${[15, 20, 25, 30][h % 4]}-rep combo`, need: [15, 20, 25, 30][h % 4], have: g.best},
-    {id: "fast", text: `${Math.round(g.goal * [.4, .5, .6][(h >> 3) % 3])} answers in under ${FAST / 1000} s`, need: Math.round(g.goal * [.4, .5, .6][(h >> 3) % 3]), have: g.fast}];
+    {id: "fast", text: `${Math.round(g.goal * [.4, .5, .6][(h >> 3) % 3])} speed bonuses`, need: Math.round(g.goal * [.4, .5, .6][(h >> 3) % 3]), have: g.fast}];
 }
 function score(ease) {
   newDay();
-  const fast = thinkMs < FAST, lv = level(g.xp), m0 = mult(), wasHit = g.goalHit, record = g.record, firstToday = !g.reps;
-  if (ease === 1) breakCombo(); else if (!fast) breakCombo(); else combo++;
+  const fast = thinkMs < FAST && ease >= 3, lv = level(g.xp), m0 = mult(), wasHit = g.goalHit, record = g.record, firstToday = !g.reps;
+  if (Date.now() - shownAt > IDLE) breakCombo();
+  combo++;
   blip(ease); buzz(ease);
   juice = !combo ? "" : mult() > m0 ? " j big" : " j";
   const boss = isBoss(card);
-  const xp = ease === 1 ? 2 : Math.round(10 * mult()) * (boss ? 3 : 1);
+  const points = fast ? FAST_POINTS : POINTS, m = mult() * (boss ? 3 : 1), xp = Math.round(points * m);
   const t = today();
-  t.reps++; t.fast += fast && ease > 1; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
+  t.reps++; t.fast += fast; t.best = Math.max(t.best, combo); t.xp += xp; t.goal = g.goal;
   mine.xp += xp; mine.record = Math.max(mine.record, combo);
   g = merge();
-  if (ease === 1) pop(`+${xp} XP`); else pointsMult(mult() * (boss ? 3 : 1), xp);
+  pointsMult(points, m, xp);
   if (sess) {
     sess.reps++; sess.again += ease === 1; sess.best = Math.max(sess.best, combo);
     if (thinkMs < 60000) { sess.think += thinkMs; sess.thinkN++; }
@@ -694,7 +696,7 @@ function score(ease) {
   if (boss && ease > 1) {
     bosses[sel].beaten = true; saveBosses(); mine.bosses = (mine.bosses | 0) + 1;
     win("👑 Boss defeated!", `Triple XP: +${xp}.`, [392, 523, 659, 784, 1047, 1319], "square"); buzz("milestone");
-  } else if (boss) balloon("👑 The boss won this round", "It comes back later today: beat it then for ×3 XP.");
+  } else if (boss) balloon("👑 The boss won this round", `Triple XP anyway: +${xp}. It comes back later today.`);
   if (mult() > m0 && combo) { chime([660, 880]); shake(Math.floor(mult())); }
   if (MILESTONES.includes(combo)) { win(`${combo} combo!`, `${combo} in a row. Keep going!`, [523, 659, 784, 1047, 1319], "square"); buzz("milestone"); }
   if (combo > record && !recordShown && record >= 5) { win("New record!", `Best combo ever: ${combo} and counting.`, [784, 1047, 1568], "square"); recordShown = true; }
@@ -756,7 +758,7 @@ const totalReps = () => Object.values(g.days).reduce((n, d) => n + d.reps, 0);
 const ACH = [
   {id: "goal", icon: "🎯", name: "Goal getter", desc: "Reach the daily goal", ok: () => g.goalHit},
   {id: "overtime", icon: "⏱️", name: "Overtime", desc: "Double the daily goal in a day", ok: () => g.reps >= 2 * g.goal},
-  {id: "speed", icon: "🏎️", name: "Speedy", desc: "50 fast answers in a day", ok: () => g.fast >= 50},
+  {id: "speed", icon: "🏎️", name: "Speedy", desc: "50 speed bonuses in a day", ok: () => g.fast >= 50},
   {id: "combo10", icon: "⚡", name: "On a roll", desc: "A 10-rep combo", ok: () => g.record >= 10},
   {id: "combo25", icon: "⚡", name: "Unstoppable", desc: "A 25-rep combo", ok: () => g.record >= 25},
   {id: "combo50", icon: "🌩️", name: "Lightning", desc: "A 50-rep combo", ok: () => g.record >= 50},
@@ -768,7 +770,7 @@ const ACH = [
   {id: "reps10000", icon: "🏛️", name: "Ten thousand", desc: "10,000 reps here", ok: () => totalReps() >= 10000},
   {id: "level10", icon: "⭐", name: "Level 10", desc: "Reach level 10", ok: () => level(g.xp) + 1 >= 10},
   {id: "level25", icon: "🌟", name: "Level 25", desc: "Reach level 25", ok: () => level(g.xp) + 1 >= 25},
-  {id: "perfect", icon: "💎", name: "Flawless", desc: "Finish a deck (20+ reps) without Again", ok: () => false},
+  {id: "perfect", icon: "💎", name: "Clean sweep", desc: "Finish a sitting of 20+ reps", ok: () => false},
   {id: "boss", icon: "👑", name: "Boss slayer", desc: "Beat a boss card", ok: () => g.bosses >= 1},
   {id: "boss10", icon: "👑", name: "Boss hunter", desc: "Beat 10 boss cards", ok: () => g.bosses >= 10},
 ];
@@ -814,9 +816,9 @@ function pop(text, cls = "") {
   const p = document.createElement("div"); p.className = "pop " + cls; p.textContent = text;
   document.body.append(p); setTimeout(() => p.remove(), 900);
 }
-function pointsMult(m, xp) {
+function pointsMult(points, m, xp) {
   const p = document.createElement("div"); p.className = "pxm";
-  p.innerHTML = `<span class="c">10</span><span class="x">×${+m.toFixed(1)}</span>`;
+  p.innerHTML = `<span class="c">${points}</span><span class="x">×${+m.toFixed(1)}</span>`;
   document.body.append(p);
   setTimeout(() => {
     p.innerHTML = `<span class="t">+0 XP</span>`;
@@ -870,10 +872,6 @@ setInterval(() => {
   const before = clock.ms; clock.ms += dt;
   const left = FAST - clock.ms;
   if (left > 0 && left <= 3000 && Math.ceil(left / 1000) < Math.ceil((FAST - before) / 1000) && combo >= 3) chime([1200], "sine", 0.2);
-  if (left <= 0 && !clock.broke) {   // only the game bar changes: redrawing the card would restart its audio
-    clock.broke = true; breakCombo();
-    const gb = $("gbar"); if (gb) { gb.outerHTML = gameBar(); $("gbar").onclick = questsBox; }
-  }
   drawTimer();
 }, 100);
 

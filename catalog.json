@@ -4,7 +4,7 @@
      "about": "A calm dashboard: stats, heatmap, palettes, one Study button"},
     {"id": "flashcolor", "name": "Flashcolor", "icon": "🟨", "bg": "#d9a900", "version": 3, "app": 3, "files": ["index.html"],
      "about": "One colour per moment, huge type: green home, yellow question, black answer"},
-    {"id": "xp", "name": "Anki XP", "icon": "🪟", "bg": "#245edb", "version": 2, "app": 3, "files": ["index.html", "icon.png"],
+    {"id": "xp", "name": "Anki XP", "icon": "🪟", "bg": "#245edb", "version": 3, "app": 3, "files": ["index.html", "icon.png"],
      "about": "Windows XP: XP, combos, quests, trophies"},
     {"id": "hunger", "name": "Anki Hunger", "icon": "🗡️", "bg": "#5a1010", "version": 3, "app": 3, "files": ["index.html"],
      "about": "Fear & Hunger fights: arms, legs, head; Again = you get hit (bring your own sprites)"},
